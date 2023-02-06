@@ -9,22 +9,49 @@ import Data.Text (Text)
 import Data.Text qualified as Text
 import GHC.Generics (Generic)
 
+type RequiredFeatures = {-NonEmpty-}Set Text
+
+{-
+feature :: Text -> RequiredFeatures
+feature = Set.singleton
+
+--empty :: RequiredFeatures
+--empty = Set.empty
+
+union :: RequiredFeatures -> RequiredFeatures -> RequiredFeatures
+union = Set.union
+
+-- x = atom "foo" `and` atom "bar"
+-}
+
+-- Version 2
+-- data File = File {content :: BS.ByteString, executable :: Maybe RequiredFeatures}
+data File = MkFile {content :: BS.ByteString, executable :: Bool}
+    deriving stock (Generic, Eq, Ord)
+
 data FileSystemObject
     = Directory (Map Text FileSystemObject)
-    | File {content :: BS.ByteString, executable :: Bool}
+    | File File
     | Link FilePath
     deriving stock (Generic, Eq, Ord)
 
 hashFileSystemObject :: FileSystemObject -> Text
 hashFileSystemObject = const ""
 
+{-
+data Deriver
+  = InputAddressed Derivation
+  | ContentAddressed (Maybe Derivation)
+-}
+
 data StoreObject = StoreObject
-    { storeObjectPath :: StorePath
-    , storeObjectReferences :: Set StoreObject
+    { storeObjectReferences :: Set StoreObject
     , storeObjectData :: FileSystemObject
+    --, storeObjectDeriver :: Deriver
     }
     deriving stock (Generic, Eq, Ord)
 
+{-
 data StorePath = StorePath
     { storePathHash :: Text
     , storePathName :: Text
@@ -36,11 +63,12 @@ instance Show StorePath where
 
 data Store = Store
     { storeObjects :: Map StorePath StoreObject
-    , storeDirectory :: FilePath
+    --, storeDirectory :: FilePath
+    --, storeTrustMapping :: Map Derivation StoreObject
     }
     deriving stock (Generic, Eq)
 
-storeAdd :: FileSystemObject -> Maybe Text -> Store -> Store
+storeAdd :: FileSystemObject -> Maybe Text -> StoreM s (Ref s)
 storeAdd fso maybeName store =
     store
         { storeObjects = Map.insert storePath storeObject store.storeObjects
@@ -53,35 +81,20 @@ storeAdd fso maybeName store =
             }
     storeObject =
         StoreObject
-            { storeObjectPath = storePath
-            , storeObjectReferences = mempty
+            { storeObjectReferences = mempty
             , storeObjectData = fso
             }
+-}
 
 data Derivation = Derivation
-    { derivationSystem :: Text
-    , derivationBuilder :: StoreObject
-    , derivationArgs :: [Text]
-    , derivationEnv :: Map Text Text
-    , derivationInputs :: Set StoreObject
-    , derivationOutputs :: Map Text StorePath
+    { derivationBuilder :: (File, Set StoreObject)
+    , derivationArg :: StoreObject
     }
 
-execve :: Text -> StoreObject -> [Text] -> Map Text Text -> Either Text (Map Text StoreObject)
-execve system object args env = undefined (system, executable, args, env)
+force :: Derivation -> StoreObject
+force (Derivation object arg) = undefined --execve (system, executable, args, env)
   where
-    executable :: BS.ByteString
-    executable = case object.storeObjectData of
-        File{executable = True, content} -> content
-        _ -> error "File is not executable"
-
-buildDerivation :: Derivation -> Either Text (Map Text StoreObject)
-buildDerivation Derivation{..} =
-    execve
-        derivationSystem
-        derivationBuilder
-        derivationArgs
-        derivationEnv
+    possibleRefs = snd object <> storeObjectReferences arg
 
 main :: IO ()
 main = putStrLn "Hello, Haskell!"
