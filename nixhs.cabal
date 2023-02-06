@@ -1,0 +1,33 @@
+cabal-version:      3.0
+name:               nixhs
+version:            23.1
+build-type:         Simple
+
+common common
+    default-language: GHC2021
+    ghc-options: -Wall
+    default-extensions:
+        ApplicativeDo
+        DataKinds
+        DefaultSignatures
+        DeriveAnyClass
+        DeriveGeneric
+        DerivingStrategies
+        ExplicitNamespaces
+        OverloadedLabels
+        OverloadedRecordDot
+        OverloadedStrings
+        RecordWildCards
+        RecursiveDo
+        TypeFamilies
+
+executable nixhs
+    import:           common
+    main-is:          Main.hs
+    hs-source-dirs:   .
+    ghc-options: -threaded
+    build-depends:
+        base,
+        bytestring,
+        containers,
+        text
